@@ -151,6 +151,22 @@ function changeToken(el, type) {
   return squash(el.textContent);
 }
 
+/** Input rules and the choices of a dropdown or radio group. Metadata only: never a value. */
+function constraintsOf(members, type, doc) {
+  const el = members[0];
+  const c = {};
+  for (const attr of ['minlength', 'maxlength', 'min', 'max', 'pattern']) {
+    const v = el.getAttribute(attr);
+    if (v) c[attr] = clip(v, 80);
+  }
+  if (type === 'select' || type === 'multiselect') {
+    c.options = [...el.options].filter((o) => o.value !== '' && !o.disabled).map((o) => squash(o.textContent)).filter(Boolean).slice(0, 15);
+  } else if (type === 'radio-group') {
+    c.options = members.map((m) => accessibleName(m, doc).name).filter(Boolean).slice(0, 15);
+  }
+  return c;
+}
+
 /**
  * @param {Document} doc
  * @param {{salt?:string, href?:string}} [opts]
@@ -232,6 +248,7 @@ export function createDiscovery(doc, opts = {}) {
       disabled: members.every((m) => m.disabled === true || m.getAttribute('aria-disabled') === 'true'),
       unlabelled: !name,
       weakName: nameSource === 'placeholder' || nameSource === 'title',
+      constraints: constraintsOf(members, type, doc),
     };
     if (isRadioGroup) field.optionCount = members.length;
     registry.set(id, { el: members.find((m) => m.checked) ?? el, members, type, sensitive: sens.sensitive });

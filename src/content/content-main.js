@@ -2,7 +2,7 @@
 import { MSG, makeMessage, validateMessage } from '../communication/message-contracts.js';
 import { createDiscovery, readTextBySelector } from './form-discovery.js';
 import { watchPage } from './page-observer.js';
-import { focusElement, clickAction, readBackValue } from './interaction-manager.js';
+import { focusElement, clickAction, readBackValue, fillValue } from './interaction-manager.js';
 
 (function init() {
   if (globalThis.__pwsContentLoaded) return; // guard against double injection in this isolated world
@@ -40,6 +40,12 @@ import { focusElement, clickAction, readBackValue } from './interaction-manager.
         const entry = discovery.getEntry(payload.fieldId);
         // The service worker only asks when the user enabled read-back; the page is told so explicitly.
         return entry ? readBackValue(entry.el, { enabled: true }) : { ok: false, reason: 'not_found' };
+      }
+      case MSG.FILL: {
+        if (!discovery.getEntry(payload.fieldId)) discovery.discover(lastOptions);
+        const entry = discovery.getEntry(payload.fieldId);
+        // fillValue re-checks sensitivity itself and refuses sensitive fields.
+        return entry ? fillValue(entry.el, payload.value, { type: entry.type, members: entry.members }) : { ok: false, reason: 'not_found' };
       }
       case MSG.READ_TEXT: {
         const text = readTextBySelector(document, payload.selector);
