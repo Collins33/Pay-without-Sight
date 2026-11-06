@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Step 1 of 5: Personal details - Demo County Permit Service (fake)</title>
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body data-page="personal">
+  <header>
+    <h1>Demo County Permit Service</h1>
+    <p class="banner">Demonstration only. Use fake data. No real payment is made.</p>
+    <ol class="steps" aria-label="Progress">
+      <li aria-current="step">1 Personal details</li><li>2 Service</li><li>3 Review</li><li>4 Payment</li><li>5 Receipt</li>
+    </ol>
+  </header>
+  <main>
+    <h2>Personal details</h2>
+    <form novalidate onsubmit="return false">
+      <label for="fullname">Full name</label>
+      <input id="fullname" name="fullname" type="text" autocomplete="name" required aria-required="true" aria-describedby="err-fullname">
+      <p id="err-fullname" class="error" hidden></p>
+
+      <label for="nationalid">National ID number</label>
+      <p id="hint-id" class="hint">8 digits, no spaces.</p>
+      <input id="nationalid" name="nationalid" type="text" inputmode="numeric" required aria-required="true" aria-describedby="hint-id err-nationalid">
+      <p id="err-nationalid" class="error" hidden></p>
+
+      <label for="phone">Phone number</label>
+      <p id="hint-phone" class="hint">Include the country code, for example +254712345678.</p>
+      <input id="phone" name="phone" type="tel" autocomplete="tel" required aria-required="true" aria-describedby="hint-phone err-phone">
+      <p id="err-phone" class="error" hidden></p>
+
+      <!-- Quirk: one date split over three separate fields inside a fieldset. -->
+      <fieldset aria-describedby="err-dob">
+        <legend>Date of birth</legend>
+        <div class="date-row">
+          <div><label for="dob-day">Day</label><input id="dob-day" name="dob-day" type="text" inputmode="numeric" maxlength="2" required aria-required="true"></div>
+          <div><label for="dob-month">Month</label><input id="dob-month" name="dob-month" type="text" inputmode="numeric" maxlength="2" required aria-required="true"></div>
+          <div><label for="dob-year">Year</label><input id="dob-year" name="dob-year" type="text" inputmode="numeric" maxlength="4" required aria-required="true"></div>
+        </div>
+        <p id="err-dob" class="error" hidden></p>
+      </fieldset>
+
+      <button type="button" id="continue">Continue</button>
+    </form>
+  </main>
+  <footer><p>Fake government site for testing Pay Without Sight.</p></footer>
+  <script src="demo.js"></script>
+</body>
+</html>

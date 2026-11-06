@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Step 2 of 5: Service information - Demo County Permit Service (fake)</title>
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body data-page="service">
+  <header>
+    <h1>Demo County Permit Service</h1>
+    <p class="banner">Demonstration only. Use fake data. No real payment is made.</p>
+    <ol class="steps" aria-label="Progress">
+      <li>1 Personal details</li><li aria-current="step">2 Service</li><li>3 Review</li><li>4 Payment</li><li>5 Receipt</li>
+    </ol>
+  </header>
+  <main>
+    <h2>Service information</h2>
+    <form novalidate onsubmit="return false">
+      <label for="service-type">Service</label>
+      <select id="service-type" name="service-type" required aria-required="true" aria-describedby="err-service-type">
+        <option value="">Choose a service</option>
+        <option value="renew">Renew business permit</option>
+        <option value="replace">Replace lost permit</option>
+      </select>
+      <p id="err-service-type" class="error" hidden></p>
+
+      <label for="permit">Existing permit number</label>
+      <p id="hint-permit" class="hint">Format PN- followed by 5 digits, for example PN-12345.</p>
+      <input id="permit" name="permit" type="text" required aria-required="true" aria-describedby="hint-permit err-permit">
+      <p id="err-permit" class="error" hidden></p>
+
+      <fieldset aria-describedby="err-collect">
+        <legend>How will you collect your permit?</legend>
+        <div class="choice"><input type="radio" id="collect-office" name="collect" value="office" required><label for="collect-office">Collect from the county office</label></div>
+        <div class="choice"><input type="radio" id="collect-post" name="collect" value="post"><label for="collect-post">Send by post</label></div>
+        <p id="err-collect" class="error" hidden></p>
+      </fieldset>
+
+      <div class="choice">
+        <input type="checkbox" id="declare" name="declare" required aria-required="true" aria-describedby="err-declare">
+        <label for="declare">I confirm the information I have given is true</label>
+      </div>
+      <p id="err-declare" class="error" hidden></p>
+
+      <button type="button" id="continue">Continue</button>
+    </form>
+  </main>
+  <footer><p>Fake government site for testing Pay Without Sight.</p></footer>
+  <script src="demo.js"></script>
+</body>
+</html>

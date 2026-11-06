@@ -1,0 +1,31 @@
+/* Shared styles for the fake demo government site. Plain, readable, high contrast. */
+:root { --green: #166534; --ink: #0a0a0a; --line: #d5e8db; --soft: #f3faf5; --err: #b42318; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 18px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: #fff; }
+header, main, footer { max-width: 42rem; margin: 0 auto; padding: 1rem 1.25rem; }
+header { border-bottom: 1px solid var(--line); }
+h1 { font-size: 1.5rem; margin: 0 0 .5rem; }
+h2 { font-size: 1.25rem; margin: 1.5rem 0 .75rem; }
+.banner { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: .5rem .75rem; margin: .5rem 0; }
+.steps { display: flex; gap: .5rem; flex-wrap: wrap; padding: 0; margin: .5rem 0; list-style: none; }
+.steps li { padding: .15rem .6rem; border: 1px solid var(--line); border-radius: 8px; }
+.steps li[aria-current="step"] { background: var(--green); color: #fff; border-color: var(--green); }
+label, legend { display: block; font-weight: 600; margin-top: 1rem; }
+.hint { margin: .15rem 0 .35rem; color: #2b2b2b; font-weight: 400; }
+input[type="text"], input[type="tel"], input[type="password"], input[type="number"], select { width: 100%; min-height: 2.75rem; padding: .4rem .6rem; font: inherit; border: 2px solid #444; border-radius: 6px; background: #fff; color: var(--ink); }
+input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--err); }
+fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 1rem 0; padding: .5rem 1rem 1rem; }
+.date-row { display: flex; gap: .75rem; }
+.date-row > div { flex: 1; }
+.date-row label { font-weight: 400; margin-top: .25rem; }
+.choice { display: flex; align-items: center; gap: .6rem; margin-top: .5rem; }
+.choice input { width: 1.4rem; height: 1.4rem; }
+.choice label { margin: 0; font-weight: 400; }
+.error { color: var(--err); font-weight: 600; margin: .25rem 0; }
+.error::before { content: "\26A0\FE0F  Error: "; }
+button, a.button { display: inline-block; min-height: 2.75rem; padding: .5rem 1.25rem; margin: 1.25rem .5rem 0 0; font: inherit; font-weight: 600; color: #fff; background: var(--green); border: 2px solid var(--green); border-radius: 8px; text-decoration: none; cursor: pointer; }
+button.secondary, a.secondary { color: var(--green); background: #fff; }
+:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem; }
+dt { font-weight: 600; }
+dd { margin: 0; }

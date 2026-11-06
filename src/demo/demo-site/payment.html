@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Step 4 of 5: Payment - Demo County Permit Service (fake)</title>
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body data-page="payment">
+  <header>
+    <h1>Demo County Permit Service</h1>
+    <p class="banner">Simulated payment. Use fake card details only. No money moves.</p>
+    <ol class="steps" aria-label="Progress">
+      <li>1 Personal details</li><li>2 Service</li><li>3 Review</li><li aria-current="step">4 Payment</li><li>5 Receipt</li>
+    </ol>
+  </header>
+  <main>
+    <h2>Payment summary</h2>
+    <dl id="pay-summary">
+      <dt>Recipient</dt><dd id="pay-recipient">Demo County Revenue Authority</dd>
+      <dt>Amount</dt><dd id="pay-amount">KES 2,500.00</dd>
+      <dt>Fees</dt><dd id="pay-fees">KES 50.00</dd>
+      <dt>Total</dt><dd id="pay-total">KES 2,550.00</dd>
+      <dt>Purpose</dt><dd id="pay-purpose">Business permit renewal (demo)</dd>
+    </dl>
+
+    <h2>Card details (fake data only)</h2>
+    <form novalidate onsubmit="return false">
+      <label for="card-number">Card number</label>
+      <input id="card-number" name="card-number" type="text" inputmode="numeric" autocomplete="cc-number" required aria-required="true" aria-describedby="err-card">
+      <p id="err-card" class="error" hidden></p>
+
+      <label for="card-code">Card security code</label>
+      <input id="card-code" name="card-code" type="password" inputmode="numeric" autocomplete="cc-csc" maxlength="4" required aria-required="true" aria-describedby="err-code">
+      <p id="err-code" class="error" hidden></p>
+
+      <button type="button" id="pay-btn">Pay now</button>
+    </form>
+  </main>
+  <footer><p>Fake government site for testing Pay Without Sight.</p></footer>
+  <script src="demo.js"></script>
+</body>
+</html>

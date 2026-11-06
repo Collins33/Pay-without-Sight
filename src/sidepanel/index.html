@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pay Without Sight</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#command">Skip to the instruction box</a>
+
+  <header>
+    <h1>Pay Without Sight</h1>
+    <p id="context-line">Service: <span id="service">Loading</span>. Stage: <span id="stage">unknown</span>.</p>
+    <p id="progress-text" class="progress-text">Not in a guided step</p>
+    <div id="progress-bar" class="progress" role="progressbar" aria-labelledby="progress-text" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-valuetext="Not in a guided step">
+      <span id="progress-fill" class="progress-fill"></span>
+    </div>
+  </header>
+
+  <main>
+    <section aria-labelledby="instruction-heading">
+      <h2 id="instruction-heading">Current instruction</h2>
+      <p id="instruction">Loading.</p>
+    </section>
+
+    <section aria-labelledby="command-heading">
+      <h2 id="command-heading">Your command</h2>
+      <form id="command-form" autocomplete="off">
+        <label for="command">Type a command</label>
+        <p id="command-hint" class="hint">For example: where am I, list fields, go to full name, next, help.</p>
+        <div class="row">
+          <input id="command" name="command" type="text" maxlength="200" spellcheck="false" aria-describedby="command-hint">
+          <button type="submit" id="run">Run</button>
+        </div>
+      </form>
+    </section>
+
+    <section aria-labelledby="result-heading">
+      <h2 id="result-heading">Result</h2>
+      <div id="result" class="result" role="status" aria-live="polite" aria-atomic="true"></div>
+    </section>
+
+    <section id="review" aria-labelledby="review-heading" hidden>
+      <h2 id="review-heading" tabindex="-1">Review and confirm</h2>
+      <p id="review-intro"></p>
+      <dl id="review-lines" class="lines"></dl>
+      <p id="review-notice" class="notice" hidden><span aria-hidden="true" class="icon">&#9888;</span> <span id="review-notice-text"></span></p>
+      <p id="review-status" class="hint"></p>
+      <div class="row wrap">
+        <button type="button" id="confirm-btn">Confirm</button>
+        <button type="button" id="execute-btn" hidden>Send now</button>
+        <button type="button" id="cancel-btn" class="secondary">Cancel review</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="settings-heading">
+      <h2 id="settings-heading">
+        <button type="button" id="settings-toggle" class="disclosure" aria-expanded="false" aria-controls="settings-body">Settings</button>
+      </h2>
+      <div id="settings-body" hidden>
+        <label for="verbosity">Announcement detail</label>
+        <select id="verbosity">
+          <option value="normal">Normal</option>
+          <option value="minimal">Minimal</option>
+        </select>
+
+        <label for="text-size">Instruction text size</label>
+        <select id="text-size">
+          <option value="normal">Normal</option>
+          <option value="large">Large</option>
+          <option value="xlarge">Extra large</option>
+        </select>
+
+        <div class="check">
+          <input type="checkbox" id="read-back" aria-describedby="read-back-note">
+          <label for="read-back">Allow reading back field values on request</label>
+        </div>
+        <p id="read-back-note" class="hint">Off by default. When on, "read back" plus a field name reads that one ordinary field aloud. It happens on this device only and is never sent anywhere. Sensitive fields such as codes, PINs and passwords are never read.</p>
+
+        <button type="button" id="reset-btn" class="secondary">Reset progress</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p id="status-line">Starting.</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
