@@ -9,6 +9,15 @@ const EXACT = new Map([
   ['next', 'next'],
   ['next field', 'next'],
   ['next required field', 'next'],
+  ['go to next', 'next'],
+  ['go to next field', 'next'],
+  ['go to the next field', 'next'],
+  ['what fields are there', 'list_fields'],
+  ['what fields are on this page', 'list_fields'],
+  ['what are the fields', 'list_fields'],
+  ['clear', 'clear'],
+  ['clear field', 'clear'],
+  ['clear this field', 'clear'],
   ['explain this stage', 'explain'],
   ['explain stage', 'explain'],
   ['explain', 'explain'],
@@ -39,6 +48,10 @@ export const COMMAND_HELP = [
   'read back <label>: read one ordinary field aloud (only if turned on in settings)',
   'read receipt: read the receipt on the receipt step',
   'submit or pay: open the review; nothing is sent until you confirm in the panel',
+  'click <label>: press an ordinary button or link by name (submit and pay stay behind their review)',
+  'details: the requirements of the field you are on',
+  'type <text>, or just type the text: put it in the field you are on',
+  'clear: empty the field you are on',
   'help: this list',
 ];
 
@@ -69,6 +82,20 @@ export function parseCommand(input) {
 
   m = /^read back\s+(.+)$/.exec(text) ?? /^read\s+(.+?)\s+back$/.exec(text);
   if (m) return { command: 'read_back', arg: m[1].trim(), raw };
+
+  if (
+    /^(?:(?:give|tell) me )?(?:the )?(?:details|requirements|info|information)(?: (?:about|of|for|on) (?:this|the current|the focused) field)?$/.test(text)
+    || /^what are the (?:details|requirements)(?: of this field)?$/.test(text)
+    || /^(?:describe|explain) (?:this|the current) field$/.test(text)
+    || /^what (?:is|does) this field (?:need|require|want)$/.test(text)
+  ) return { command: 'field_details', raw };
+
+  m = /^(?:click|press)(?:\s+(?:on\s+)?(?:the\s+)?(.*))?$/.exec(text);
+  if (m) return { command: 'click', arg: (m[1] ?? '').trim(), raw };
+
+  // "type <value>" keeps the original capitalisation, so it reads from raw, not the lowercased text.
+  m = /^(?:type|enter|fill)(?:\s+(.*))?$/i.exec(raw.trim());
+  if (m) return { command: 'fill', arg: (m[1] ?? '').trim().slice(0, 200), raw };
 
   return { command: 'unknown', raw };
 }

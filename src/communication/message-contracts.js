@@ -24,6 +24,7 @@ export const MSG = Object.freeze({
   CLICK: 'pws/click',
   READ_BACK: 'pws/read-back',
   READ_TEXT: 'pws/read-text',
+  FILL: 'pws/fill',
 });
 
 const KIND = { type: 'string', enum: ['submission', 'payment'], required: true };
@@ -59,6 +60,7 @@ const SCHEMAS = {
     },
   },
   [MSG.READ_BACK]: { from: ['service-worker'], payload: { fieldId: ID } },
+  [MSG.FILL]: { from: ['service-worker'], payload: { fieldId: ID, value: { type: 'string', maxLength: 200, required: true } } },
   [MSG.READ_TEXT]: { from: ['service-worker'], payload: { selector: { type: 'string', maxLength: 120, required: true } } },
 };
 

@@ -175,6 +175,7 @@ export function createCoordinator({ ids, local, session, bridge, provider, workf
     const obs = await observe();
     const { snap, tx, prefs } = obs;
     let readBackChanged = false;
+    let pageChanged = false;
     const ctx = {
       page: snap.ok ? snap.page : null,
       problem: snap.ok ? null : snap.problem,
@@ -187,6 +188,23 @@ export function createCoordinator({ ids, local, session, bridge, provider, workf
       clickAction: (id) => bridge.send(MSG.CLICK, { actionId: id }),
       readBackValue: (id) => (prefs.readBackEnabled ? bridge.send(MSG.READ_BACK, { fieldId: id }) : { ok: false, reason: 'read_back_disabled' }),
       readText: (selector) => bridge.send(MSG.READ_TEXT, { selector }),
+      fillValue: (id, value) => bridge.send(MSG.FILL, { fieldId: id, value }),
+      // After a click, poll briefly for a new page or new errors. `snap` is the page as it was before the click.
+      waitForPageChange: async () => {
+        const sig = (s) => (s.ok
+          ? [s.page.href, s.page.title, s.page.fields.map((f) => f.name).join(','), s.page.errors.map((e) => e.text).join(',')].join('|')
+          : '');
+        const before = sig(snap);
+        for (let i = 0; i < 8; i++) {
+          await new Promise((r) => setTimeout(r, 250));
+          const next = await readPage();
+          if (next.ok && sig(next) !== before) {
+            pageChanged = true;
+            return next;
+          }
+        }
+        return null;
+      },
       beginTransaction: async (kind) => {
         if (tx.tm.state.pending?.kind === kind) return { ok: true };
         return obs.blockedReason ? { ok: false, reason: obs.blockedReason } : { ok: false, reason: 'The review is not available on this page.' };
@@ -197,6 +215,11 @@ export function createCoordinator({ ids, local, session, bridge, provider, workf
       },
     };
     const result = await runCommand(parsed, ctx);
+    if (pageChanged) {
+      // The page changed while the command ran, so the observation above is stale: observe again for the panel view.
+      const fresh = await observe();
+      return { ok: result.ok, message: result.message, lines: result.lines ?? null, focusConfirm: !!result.focusConfirm, view: buildView(fresh) };
+    }
     if (readBackChanged && snap.ok && snap.stageInfo.stage?.consequential) {
       syncTransactions(snap, snap.stageInfo.stage.id, tx);
     }
