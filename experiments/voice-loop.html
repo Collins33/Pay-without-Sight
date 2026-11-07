@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice loop prototype (fake data only)</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;font-size:1.25rem}
+button{font-size:1.5rem;padding:1rem 1.5rem;margin:.5rem 0;width:100%}
+input{font-size:1.25rem;padding:.5rem;width:100%;box-sizing:border-box}
+#log{border:1px solid #888;padding:1rem;min-height:8rem;margin-top:1rem}
+</style>
+</head>
+<body>
+<button id="start" autofocus>Start. Press Enter or Space, or tap anywhere on the page.</button>
+<h1>Voice loop prototype</h1>
+<p>Fake data only. Never say a PIN or a one-time code.</p>
+<p><label for="typed">Type instead of speaking</label>
+<input id="typed" autocomplete="off"></p>
+<button id="send">Send typed answer</button>
+<div id="log" role="log" aria-live="polite"></div>
+<script>
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const log = document.getElementById('log');
+const typed = document.getElementById('typed');
+const startBtn = document.getElementById('start');
+let pending = null;
+let running = false;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const WORDS = {zero:'0',oh:'0',o:'0',one:'1',two:'2',three:'3',four:'4',five:'5',six:'6',seven:'7',eight:'8',nine:'9',plus:'+'};
+
+function cleanDigits(text) {
+  const parts = text.toLowerCase().split(/[\s,.-]+/).map(w => (WORDS[w] !== undefined ? WORDS[w] : w));
+  return parts.join('').replace(/[^\d+]/g, '');
+}
+
+function say(text) {
+  const p = document.createElement('p');
+  p.textContent = text;
+  log.appendChild(p);
+  return new Promise(res => {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.onend = res;
+    u.onerror = res;
+    speechSynthesis.speak(u);
+  });
+}
+
+function listen() {
+  return new Promise(res => {
+    let done = false;
+    const finish = t => {
+      if (!done) { done = true; pending = null; res((t || '').trim()); }
+    };
+    pending = finish;
+    if (!SR) return; // typed answers only
+    const r = new SR();
+    r.lang = 'en-KE';
+    r.interimResults = false;
+    r.onresult = e => finish(e.results[0][0].transcript);
+    r.onerror = () => finish('');
+    r.onend = () => finish('');
+    try { r.start(); } catch (e) { finish(''); }
+  });
+}
+
+function sendTyped() {
+  if (pending) pending(typed.value);
+  typed.value = '';
+}
+document.getElementById('send').addEventListener('click', sendTyped);
+typed.addEventListener('keydown', e => { if (e.key === 'Enter') sendTyped(); });
+
+async function askField(label, kind) {
+  while (true) {
+    await say('Please say your ' + label + '.');
+    const raw = await listen();
+    if (!raw) { await say("I didn't hear anything."); continue; }
+    let answer = raw;
+    let spoken = raw;
+    if (kind === 'digits') {
+      answer = cleanDigits(raw);
+      if (answer.replace('+', '').length < 9) {
+        await say('That does not look like a full number. Let us try again.');
+        continue;
+      }
+      spoken = answer.split('').join(' ');
+    }
+    await say('I heard: ' + spoken + '. Is that right? Say yes or no.');
+    const reply = (await listen()).toLowerCase();
+    if (/\b(yes|yeah|correct|right)\b/.test(reply)) return answer;
+    if (/\bcancel\b/.test(reply)) throw new Error('cancelled');
+    await say('Okay, let us try again.');
+  }
+}
+
+async function run() {
+  try {
+    const name = await askField('full name', 'text');
+    const phone = await askField('phone number', 'digits');
+    await say('Summary. Name: ' + name + '. Phone: ' + phone.split('').join(' ') + '.');
+    await say('Payment: 2,550 Kenyan shillings to Demo County Revenue Authority. To pay, say confirm payment. To stop, say cancel.');
+    const reply = (await listen()).toLowerCase();
+    if (!reply.includes('confirm payment')) {
+      await say('Payment cancelled. Nothing was charged.');
+      return;
+    }
+    await say('Request sent. Enter your M-Pesa PIN on your phone. This page never asks for it. You have 60 seconds.');
+    await sleep(30000);
+    await say('30 seconds left.');
+    await sleep(30000);
+    await say('Time ran out. Nothing was charged. Press Enter to try again.');
+  } catch (e) {
+    await say('Stopped. Nothing was submitted or charged.');
+  }
+}
+
+async function start() {
+  if (running) return;
+  running = true;
+  startBtn.disabled = true;
+  log.textContent = '';
+  await run();
+  running = false;
+  startBtn.disabled = false;
+  startBtn.focus();
+}
+
+startBtn.addEventListener('click', start);
+document.addEventListener('keydown', e => {
+  if (running || e.target === typed) return;
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start(); }
+});
+document.addEventListener('click', e => {
+  if (running) return;
+  if (e.target.closest('input, #send')) return;
+  start();
+});
+</script>
+</body>
+</html>
