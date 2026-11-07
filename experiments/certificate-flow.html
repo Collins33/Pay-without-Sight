@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Government service guide (demo, fake data) - press Enter or tap to start</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:40rem;margin:1rem auto;padding:0 1rem;font-size:1.25rem}
+button{font-size:1.4rem;padding:1rem;margin:.5rem 0;width:100%}
+input{font-size:1.25rem;padding:.6rem;width:100%;box-sizing:border-box}
+#log{border:1px solid #888;padding:1rem;min-height:6rem;margin-top:1rem}
+pre{white-space:pre-wrap;font-size:1.1rem}
+#demo{border:2px dashed #888;padding:.5rem;margin-top:1rem}
+</style>
+</head>
+<body>
+<h1>Government service guide (demo)</h1>
+<button id="start" autofocus>Press Enter, Space or tap anywhere to start</button>
+<p>Fake data only. The page never asks for a PIN. The one-time code is typed, never spoken. Say "more time" at any point if you need me to wait longer.</p>
+<p><label for="typed">Type instead of speaking</label>
+<input id="typed" autocomplete="off"></p>
+<button id="send">Send typed answer</button>
+<p><label for="otp">One-time code (typed only)</label>
+<input id="otp" inputmode="numeric" autocomplete="one-time-code" disabled></p>
+<div id="demo" hidden>
+<p>Demo only (for the facilitator): simulate what happens on the phone.</p>
+<button id="ok">Simulate: payment success</button>
+<button id="fail">Simulate: payment failed</button>
+</div>
+<div id="log"></div>
+<p><a id="dl" hidden>Download receipt as a text file</a></p>
+<script>
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const $ = id => document.getElementById(id);
+const log = $('log'), typed = $('typed'), startBtn = $('start'), otp = $('otp'), demo = $('demo');
+let pending = null, running = false, otpResolve = null, payResolve = null;
+
+// Pace profile: timing only, stored on this device. No name, ID or phone number.
+let pace = { patience: 1, sessions: [] };
+try { pace = Object.assign(pace, JSON.parse(localStorage.getItem('pace') || '{}')); } catch (e) {}
+const savePace = () => { try { localStorage.setItem('pace', JSON.stringify(pace)); } catch (e) {} };
+
+const SERVICES = {
+  conduct: { name: 'Certificate of Good Conduct', fee: 1000, business: false },
+  kra: { name: 'KRA service', fee: 500, business: false },
+  passport: { name: 'Passport application', fee: 4550, business: false },
+  business: { name: 'Business registration', fee: 1000, business: true }
+};
+
+const WORDS = {zero:'0',oh:'0',o:'0',one:'1',won:'1',two:'2',to:'2',too:'2',three:'3',four:'4',for:'4',five:'5',six:'6',seven:'7',eight:'8',ate:'8',nine:'9',plus:'+'};
+const digitsOf = t => t.toLowerCase().split(/[\s,.-]+/).map(w => (WORDS[w] !== undefined ? WORDS[w] : w)).join('').replace(/[^\d+]/g, '');
+const spaced = s => s.split('').join(' ');
+const normPhone = d => d.startsWith('+') ? d : (d.startsWith('254') ? '+' + d : d);
+const okPhone = d => { const n = normPhone(d); return /^0\d{9}$/.test(n) || /^\+254\d{9}$/.test(n); };
+const okId = d => /^\d{8}$/.test(d);
+const yes = t => /\b(yes|yeah|correct|right)\b/i.test(t);
+
+function say(shown, voiced) {
+  const p = document.createElement('p');
+  p.textContent = shown;
+  log.appendChild(p);
+  return new Promise(res => {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(voiced || shown);
+    u.onend = res; u.onerror = res;
+    speechSynthesis.speak(u);
+  });
+}
+
+function listen() {
+  return new Promise(res => {
+    let done = false;
+    const finish = t => { if (!done) { done = true; pending = null; res((t || '').trim()); } };
+    pending = finish;
+    if (!SR) return;
+    const r = new SR();
+    r.lang = 'en-KE';
+    r.interimResults = false;
+    r.onresult = e => finish(e.results[0][0].transcript);
+    r.onerror = () => finish('');
+    r.onend = () => finish('');
+    try { r.start(); } catch (e) { finish(''); }
+  });
+}
+
+async function morePatience() {
+  pace.patience = Math.min(3, pace.patience + 1);
+  savePace();
+  await say('Okay, I will wait longer for you from now on. Say reset pace to undo. Please go ahead.');
+}
+
+async function ask() {
+  while (true) {
+    const t = await listen();
+    if (/\bcancel\b/i.test(t)) throw new Error('cancelled');
+    if (/more time|slow down|slower/i.test(t)) { await morePatience(); continue; }
+    if (/reset pace/i.test(t)) {
+      pace.patience = 1; savePace();
+      await say('Pace reset. I will wait the normal time. Please go ahead.');
+      continue;
+    }
+    return t;
+  }
+}
+
+// Keeps listening through long pauses and joins digit groups together.
+function listenDigits(ok) {
+  return new Promise(res => {
+    let done = false, acc = '', sess = '', timer = null, rec = null, rounds = 0, paused = false;
+    const total = () => acc + sess;
+    const complete = t => ok(t) || ok(normPhone(t));
+    const stop = () => { try { if (rec) rec.abort(); } catch (e) {} };
+    const finish = t => {
+      if (done) return;
+      done = true; pending = null; clearTimeout(timer); stop();
+      res(t !== undefined ? digitsOf(t) : total());
+    };
+    pending = finish;
+    if (!SR) return;
+
+    const arm = () => {
+      clearTimeout(timer);
+      const t = total(), p = pace.patience;
+      if (complete(t)) { timer = setTimeout(() => finish(), 2000); return; }
+      timer = setTimeout(onQuiet, t === '' ? 12000 * p : 8000 * p);
+    };
+
+    const resumeAfter = async msg => {
+      paused = true;
+      stop();
+      acc = total(); sess = '';
+      await say(msg);
+      paused = false;
+      if (!done) { begin(); arm(); }
+    };
+
+    const onQuiet = async () => {
+      if (done) return;
+      const t = total();
+      if (t === '') { finish(''); return; }
+      rounds++;
+      if (rounds > 5) { finish(); return; }
+      await resumeAfter('I have ' + spaced(t) + '. Take your time. Continue when you are ready.');
+    };
+
+    const begin = () => {
+      if (done) return;
+      rec = new SR();
+      rec.lang = 'en-KE'; rec.continuous = true; rec.interimResults = true;
+      sess = '';
+      rec.onresult = e => {
+        if (paused || done) return;
+        const raw = Array.from(e.results).map(x => x[0].transcript).join(' ');
+        if (/start again|clear/i.test(raw)) {
+          paused = true; stop(); acc = ''; sess = '';
+          say('Okay, starting again. Say the number.').then(() => { paused = false; if (!done) { begin(); arm(); } });
+          return;
+        }
+        if (/more time|slow down|slower/i.test(raw)) {
+          sess = digitsOf(raw);
+          pace.patience = Math.min(3, pace.patience + 1); savePace();
+          resumeAfter('Okay, I will wait longer for you from now on. Continue with the number.');
+          return;
+        }
+        sess = digitsOf(raw);
+        arm();
+      };
+      rec.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') finish(); };
+      rec.onend = () => { if (!done && !paused) { acc += sess; sess = ''; begin(); arm(); } };
+      try { rec.start(); } catch (e) { finish(); }
+    };
+
+    arm(); begin();
+  });
+}
+
+function sendTyped() { if (pending) pending(typed.value); typed.value = ''; }
+$('send').addEventListener('click', sendTyped);
+typed.addEventListener('keydown', e => { if (e.key === 'Enter') sendTyped(); });
+
+async function askText(label) {
+  while (true) {
+    await say('Please say your ' + label + '.');
+    const a = await ask();
+    if (!a) { await say("I didn't hear anything."); continue; }
+    await say('I heard: ' + a + '. Is that right? Say yes or no.');
+    if (yes(await ask())) return a;
+    await say('Okay, let us try again.');
+  }
+}
+
+async function askDigits(label, ok, norm) {
+  while (true) {
+    await say('Please say your ' + label + '. Take your time, I will wait. You can say start again, or more time.');
+    const raw = await listenDigits(ok);
+    if (!raw) { await say("I didn't hear anything."); continue; }
+    const d = norm(raw);
+    if (!ok(d)) {
+      await say('I only caught ' + d + '. That is not a full ' + label + '. Let us try again.',
+                'I only caught ' + spaced(d) + '. That is not a full ' + label + '. Let us try again.');
+      continue;
+    }
+    await say('I heard: ' + d + '. Is that right? Say yes or no.', 'I heard: ' + spaced(d) + '. Is that right? Say yes or no.');
+    if (yes(await ask())) return d;
+    await say('Okay, let us try again.');
+  }
+}
+
+async function pickService() {
+  while (true) {
+    await say('Which service do you want? Say good conduct, K R A, passport, or business registration.');
+    const t = (await ask()).toLowerCase();
+    if (/conduct|good/.test(t)) return SERVICES.conduct;
+    if (/kra|k r a|tax/.test(t)) return SERVICES.kra;
+    if (/passport/.test(t)) return SERVICES.passport;
+    if (/business|regist/.test(t)) return SERVICES.business;
+    await say(t ? 'I did not catch the service.' : "I didn't hear anything.");
+  }
+}
+
+async function needPhrase(prompt, phrase) {
+  for (let i = 0; i < 3; i++) {
+    await say(prompt);
+    const t = (await ask()).toLowerCase();
+    if (t.includes(phrase)) return true;
+    if (t) return false;
+  }
+  return false;
+}
+
+async function askOtp() {
+  await say('A code was sent to your phone. Type it in the code box, then press Enter. Do not say it out loud.');
+  otp.disabled = false; otp.value = ''; otp.focus();
+  await new Promise(res => { otpResolve = res; });
+  otp.value = ''; otp.disabled = true;
+}
+otp.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !otpResolve) return;
+  if (/^\d{4,8}$/.test(otp.value)) { const r = otpResolve; otpResolve = null; r(); }
+  else say('Please type 4 to 8 digits, then press Enter.');
+});
+
+function waitOutcome(sec) {
+  return new Promise(res => {
+    demo.hidden = false;
+    let left = sec, done = false;
+    const end = o => { if (done) return; done = true; clearInterval(iv); demo.hidden = true; payResolve = null; res(o); };
+    payResolve = end;
+    const iv = setInterval(() => {
+      left--;
+      if (left === 30) say('30 seconds left.');
+      else if (left === 10) say('10 seconds left.');
+      if (left <= 0) end('timeout');
+    }, 1000);
+  });
+}
+$('ok').onclick = () => payResolve && payResolve('success');
+$('fail').onclick = () => payResolve && payResolve('failed');
+
+async function payment(svc) {
+  const fee = svc.fee.toLocaleString('en-US');
+  while (true) {
+    if (!await needPhrase('Payment: ' + fee + ' Kenyan shillings to Demo County Revenue Authority for ' + svc.name + '. This is a demo fee. To pay, say confirm payment. To stop, say cancel.', 'confirm payment')) return null;
+    await say('Request sent. Enter your M-Pesa PIN on your phone. This page never asks for it. You have 60 seconds.');
+    const o = await waitOutcome(60);
+    if (o === 'success') return 'success';
+    await say(o === 'failed' ? 'Payment failed. Nothing was charged.' : 'Time ran out. Nothing was charged.');
+    await say('Say try again, or say cancel.');
+    if (!(await ask()).toLowerCase().includes('try again')) return null;
+  }
+}
+
+async function receipt(svc) {
+  const num = String(Math.floor(10000000 + Math.random() * 90000000));
+  const ref = 'DEMO-' + num;
+  const text = 'Receipt\nReference: ' + ref + '\nPaid to: Demo County Revenue Authority\nAmount: KES ' + svc.fee.toLocaleString('en-US') + '\nService: ' + svc.name + ' (demo)\nDate: ' + new Date().toLocaleString() + '\nStatus: Simulated payment complete. No money moved.';
+  const pre = document.createElement('pre');
+  pre.textContent = text;
+  log.appendChild(pre);
+  const a = $('dl');
+  a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
+  a.download = 'receipt-' + ref + '.txt';
+  a.hidden = false;
+  await say('Payment successful.', 'Payment successful. Here is your receipt.');
+  speechSynthesis.cancel();
+  await new Promise(res => {
+    const u = new SpeechSynthesisUtterance(text.replace(ref, 'D E M O ' + spaced(num)).replace(/\n/g, '. '));
+    u.onend = res; u.onerror = res;
+    speechSynthesis.speak(u);
+  });
+}
+
+async function run() {
+  const t0 = Date.now();
+  try {
+    await say('Welcome. This is a demo with fake data. You can say cancel at any time, or more time if you need me to wait longer. I will never ask for your PIN.');
+    if (pace.patience > 1) await say('I will wait longer for you, as you asked before.');
+    const svc = await pickService();
+    await say('You chose ' + svc.name + '.');
+    const name = await askText('full name');
+    const id = await askDigits('ID number', okId, d => d);
+    const phone = await askDigits('phone number', okPhone, normPhone);
+    let biz = '';
+    if (svc.business) biz = await askText('business name');
+    await askOtp();
+    const bizText = biz ? ' Business name: ' + biz + '.' : '';
+    await say('Review. Service: ' + svc.name + '. Name: ' + name + '. ID: ' + id + '. Phone: ' + phone + '.' + bizText,
+              'Review. Service: ' + svc.name + '. Name: ' + name + '. ID: ' + spaced(id) + '. Phone: ' + spaced(phone) + '.' + bizText);
+    if (!await needPhrase('To submit your application, say confirm submit. To stop, say cancel.', 'confirm submit')) {
+      await say('Not submitted. Nothing was sent or charged.');
+      return;
+    }
+    const r = await payment(svc);
+    if (r === 'success') await receipt(svc);
+    else await say('Stopped. Nothing was charged.');
+  } catch (e) {
+    await say('Stopped. Nothing was submitted or charged.');
+  } finally {
+    pace.sessions = (pace.sessions || []).concat(Math.round((Date.now() - t0) / 1000)).slice(-5);
+    savePace();
+  }
+}
+
+async function start() {
+  if (running) return;
+  running = true;
+  startBtn.disabled = true;
+  log.textContent = '';
+  $('dl').hidden = true;
+  await run();
+  running = false;
+  startBtn.disabled = false;
+  startBtn.focus();
+}
+
+startBtn.addEventListener('click', start);
+document.addEventListener('keydown', e => {
+  if (running || e.target === typed || e.target === otp || e.target.closest('a')) return;
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start(); }
+});
+document.addEventListener('click', e => {
+  if (running || e.target.closest('input, a, #send')) return;
+  start();
+});
+</script>
+</body>
+</html>
